@@ -1,51 +1,31 @@
-# 🛡️ Aetheris Sentinel v3.5
+# 🛡️ Aetheris Sentinel v5.4 - Enterprise Security Suite
 
-> **Sistema integrado de ciberseguridad y monitoreo de hardware con IA local.**
+![License](https://img.shields.io/badge/License-MIT-green.svg)
+![Python](https://img.shields.io/badge/Python-3.10+-blue.svg)
+![AI](https://img.shields.io/badge/AI-Ollama%20Llama3.2-orange.svg)
 
----
+Aetheris Sentinel es una suite de seguridad avanzada que combina **Auditoría de Red**, **Análisis por IA** y **Hardening Activo** para proteger sistemas Windows contra vulnerabilidades críticas.
 
-## 🏗️ Arquitectura del Proyecto
-He diseñado este sistema bajo tres pilares fundamentales que integran diferentes niveles de programación para lograr una solución robusta:
+## 🚀 Características Principales
+- **Defensa Activa:** Bloqueo automático de puertos críticos (135, 445, 80) mediante reglas de Firewall persistentes.
+- **Análisis Multimodal:** Integración con Ollama (Llama 3.2) para diagnósticos técnicos en tiempo real.
+- **Sensor de Bajo Nivel:** Módulo en C++ para monitoreo de hardware de alto rendimiento.
+- **Interfaz Profesional:** Panel de mando moderno construido con CustomTkinter.
 
-### 🧠 El Cerebro (`aetheris_gui.py`)
-* **Lenguaje:** Python
-* **Función:** Gestiona la interfaz gráfica (CustomTkinter), procesa logs de sistema y consulta a la IA (**Ollama / Llama 3.2**) para generar diagnósticos de seguridad en lenguaje humano.
+### 📸 Demo de Operación (v5.4)
 
-### 💪 El Músculo (`monitor.cpp`)
-* **Lenguaje:** C++
-* **Función:** Sensor de bajo nivel que utiliza las APIs de Windows (`psapi.h`) para medir el uso de RAM y auditar sockets de red en tiempo real (Sistema de Alerta Domo).
+Aquí se observa al **Aetheris Sentinel** identificando vulnerabilidades críticas en tiempo real:
 
-### ⚡ El Interruptor (`control_total.bat`)
-* **Lenguaje:** Windows Batch
-* **Función:** Orquestador del sistema. Automatiza la configuración del entorno, verifica dependencias de Python, compila el código fuente de C++ y lanza la aplicación.
+![Dashboard Screenshot](demo3aetheris.PNG)
 
----
+> **Nota:** La IA (Llama 3.2) clasifica automáticamente el nivel de riesgo y sugiere acciones inmediatas de Hardening.
 
-## 📊 Capacidades de Análisis
-Aetheris no solo muestra datos fríos, sino que realiza una auditoría inteligente:
-- **Salud de Hardware:** Monitoreo activo de saturación de memoria RAM.
-- **Seguridad de Red:** Detección de conexiones externas activas y escaneo de puertos.
-- **Asistente de Voz:** Notificaciones auditivas mediante síntesis de voz para alertas críticas.
-
----
-
-## 🚀 Cómo empezar
-
-Sigue estos pasos para desplegar el centinela en tu estación de trabajo:
-
-1.  **Requisitos previos:**
-    * Tener instalado [Python 3.10+](https://www.python.org/).
-    * Un compilador de C++ (como MinGW o MSVC).
-    * [Ollama](https://ollama.com/) instalado.
-
-2.  **Configurar la IA:**
-    ```bash
-    ollama run llama3.2
-    ```
-
-3.  **Lanzamiento:**
-    * Ejecuta `control_total.bat` con permisos de administrador.
-    * Haz clic en **"ANALIZAR SISTEMA"** y espera el diagnóstico de Aetheris.
+*Figura 1: Interfaz de Aetheris Sentinel v5.4 mostrando un análisis de puertos en tiempo real y recomendaciones de seguridad generadas por IA.*
+## 🛠️ Instalación Rápida
+1. Asegúrate de tener instalado **Python 3.10+** y **Nmap**.
+2. Descarga este repositorio.
+3. Ejecuta `control_total.bat` como **Administrador**. El sistema configurará automáticamente todas las dependencias.
 
 ---
-*Desarrollado con un enfoque en eficiencia de hardware, ciberseguridad industrial e inteligencia artificial local.*
+**Desarrollado por Samuel | Especialista en Seguridad y Automatización**
+
