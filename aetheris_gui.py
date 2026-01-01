@@ -1,226 +1,159 @@
+# =================================================================
+# AETHERIS SENTINEL v5.4 - PROFESSIONAL EDITION
+# =================================================================
 import customtkinter as ctk
 import subprocess
 import os
-import logging
 import xml.etree.ElementTree as ET
-from plyer import notification
 import ollama
 import pyttsx3
-import threading  # Para que la voz no congele la ventana
+import threading
+import psutil
 
 # =================================================================
-# BLOQUE 0: CONFIGURACIÓN GENERAL Y LOGS
+# NÚCLEO DE SEGURIDAD (KERNEL & SERVICES)
 # =================================================================
-# Configuración del archivo de auditoría (La Caja Negra)
-logging.basicConfig(
-    filename="aetheris_history.log",
-    level=logging.INFO,
-    format="%(asctime)s | %(levelname)s | %(message)s",
-)
 
-# Inicialización del motor de voz (Text-to-Speech)
-try:
-    engine = pyttsx3.init()
-    # Configuración opcional: velocidad y volumen
-    engine.setProperty("rate", 150)
-except Exception as e:
-    logging.error(f"Error iniciando motor de voz: {e}")
-
-
-# =================================================================
-# BLOQUE 1: CEREBRO IA (Ollama + Voz)
-# =================================================================
-def hablar_en_hilo(texto):
-    """
-    Ejecuta la voz en un subproceso para no congelar la interfaz gráfica.
-    """
-
-    def _speak():
-        try:
-            engine.say(texto)
-            engine.runAndWait()
-        except:
-            pass
-
-    threading.Thread(target=_speak).start()
-
-
-def obtener_consejo_ia(datos_hw, datos_red):
-    """
-    Envía los reportes técnicos a Llama 3.2 para obtener un resumen ejecutivo.
-    """
-    print("--- ENVIANDO DATOS A OLLAMA ---")  # Debug en consola
-    prompt = f"""
-    Eres Aetheris, un experto en ciberseguridad.
-    Analiza estos datos técnicos y dame un consejo de seguridad MUY BREVE (máximo 20 palabras).
-    Sé directo y autoritario.
-
-    [ESTADO DEL PC]:
-    {datos_hw}
-
-    [ESTADO DE LA RED]:
-    {datos_red}
-
-    Si todo parece bien, di "Sistemas nominales".
-    """
-
+def aplicar_hardening_permanente(puerto):
+    """Bloqueo de Firewall y Servicios de forma segura."""
     try:
-        # Llamada a la API local de Ollama
-        response = ollama.generate(model="llama3.2", prompt=prompt)
-        return response["response"]
+        nombre_regla = f"AETHERIS_BLOCK_{puerto}"
+        
+        # 1. Bloqueo en Firewall vía NETSH (Capa de Hierro)
+        subprocess.run(["netsh", "advfirewall", "firewall", "delete", "rule", f"name={nombre_regla}"], capture_output=True)
+        result = subprocess.run([
+            "netsh", "advfirewall", "firewall", "add", "rule",
+            f"name={nombre_regla}", "dir=in", "action=block", 
+            "protocol=TCP", f"localport={puerto}"
+        ], capture_output=True)
+
+        # 2. Neutralización de puertos críticos del Sistema (445 / 135)
+        servicios_map = {"445": "LanmanServer", "135": "RpcSs", "80": "w3svc"}
+        if puerto in servicios_map:
+            svc = servicios_map[puerto]
+            # Deshabilitar para que no inicie con Windows
+            subprocess.run(["sc", "config", svc, "start=disabled"], capture_output=True)
+            # Detener el servicio inmediatamente
+            subprocess.run(["net", "stop", svc, "/y"], capture_output=True)
+
+        return result.returncode == 0
     except Exception as e:
-        error_msg = f"Error conectando con IA: Verifica que Ollama esté corriendo."
-        logging.error(error_msg)
-        return error_msg
-
+        return False
 
 # =================================================================
-# BLOQUE 2: VISIÓN DE RED (NMAP PARSER)
+# CLASE PRINCIPAL - INTERFAZ DE SEGURIDAD
 # =================================================================
-def analizar_nmap(archivo_xml):
-    """
-    Convierte el XML técnico de Nmap en texto legible para humanos y para la IA.
-    """
-    if not os.path.exists(archivo_xml):
-        return "No se ha realizado escaneo de red (Falta reporte XML)."
 
-    try:
-        tree = ET.parse(archivo_xml)
-        root = tree.getroot()
-        hallazgos = []
-
-        # Buscamos hosts y puertos abiertos
-        for host in root.findall("host"):
-            ip = host.find("address").get("addr")
-            for port in host.findall(".//port"):
-                port_id = port.get("portid")
-                state = port.find("state").get("state")
-                if state == "open":
-                    hallazgos.append(f"Puerto {port_id} ABIERTO en {ip}")
-
-        if hallazgos:
-            resumen = " | ".join(hallazgos)
-            return f"ALERTA: {resumen}"
-        return "RED SEGURA: No se detectaron puertos vulnerables."
-
-    except Exception as e:
-        return f"Error leyendo reporte Nmap: {e}"
-
-
-# =================================================================
-# BLOQUE 3: INTERFAZ GRÁFICA (CUERPO PRINCIPAL)
-# =================================================================
 class AetherisSentinel(ctk.CTk):
     def __init__(self):
         super().__init__()
-
-        # --- Configuración de la Ventana ---
-        self.title("AETHERIS SENTINEL v3.5 - IA INTEGRADA")
-        self.geometry("500x700")
+        self.title("AETHERIS SENTINEL v5.4 - Security Core")
+        self.geometry("550x750")
         ctk.set_appearance_mode("dark")
 
-        # --- Elementos Visuales (Widgets) ---
-        self.label = ctk.CTkLabel(
-            self,
-            text="CENTRO DE MANDO AETHERIS",
-            font=("Roboto", 22, "bold"),
-            text_color="#1fada8",
-        )
-        self.label.pack(pady=20)
+        # Asegurar directorio de reportes (C:\ollana)
+        self.report_dir = r"C:\ollana"
+        if not os.path.exists(self.report_dir):
+            os.makedirs(self.report_dir)
 
-        # Indicador de RAM
-        self.ram_label = ctk.CTkLabel(
-            self, text="RAM: En espera...", font=("Roboto", 18)
-        )
-        self.ram_label.pack(pady=10)
+        self.setup_ui()
+        
+        try:
+            self.voice = pyttsx3.init()
+            self.voice.setProperty("rate", 180)
+        except:
+            self.voice = None
 
-        # Pantalla de Resultados (Log en pantalla)
+    def setup_ui(self):
+        self.label_title = ctk.CTkLabel(
+            self, text="🛡️ AETHERIS SENTINEL",
+            font=("Segoe UI", 24, "bold"), text_color="#00f2ff"
+        )
+        self.label_title.pack(pady=15)
+
         self.status_box = ctk.CTkTextbox(
-            self, width=450, height=350, font=("Consolas", 12), border_width=2
+            self, width=500, height=450, font=("Consolas", 11),
+            border_color="#1fada8", border_width=1
         )
-        self.status_box.pack(pady=10, padx=20)
+        self.status_box.pack(pady=10)
 
-        # Botón de Acción
         self.btn_run = ctk.CTkButton(
-            self,
-            text="ANALIZAR SISTEMA CON IA",
-            fg_color="#1fada8",
-            hover_color="#14827d",
-            font=("Roboto", 14, "bold"),
-            height=40,
-            command=self.ejecutar_prueba,  # Conecta con la función maestra
+            self, text="INICIAR AUDITORÍA TÉCNICA",
+            command=self.iniciar_auditoria, fg_color="#1fada8",
+            hover_color="#178a85"
         )
-        self.btn_run.pack(pady=20)
+        self.btn_run.pack(pady=10)
 
-    def enviar_notificacion(self, titulo, msg):
-        """Muestra una alerta nativa de Windows"""
-        try:
-            notification.notify(
-                title=titulo, message=msg, app_name="Aetheris", timeout=5
-            )
-        except:
-            pass  # Ignoramos errores de notificación si fallan
+        self.defense_frame = ctk.CTkFrame(self, fg_color="transparent")
+        self.defense_frame.pack(pady=10)
 
-    def ejecutar_prueba(self):
-        """
-        ORQUESTADOR DE PROCESOS:
-        1. Ejecuta C++ (Sensor)
-        2. Lee Archivos (Monitor + Nmap)
-        3. Consulta a la IA (Ollama)
-        4. Actualiza la pantalla y Habla
-        """
-        # Paso 1: Feedback visual inmediato
+    def log(self, text, tag="INFO"):
+        self.after(0, lambda: self.status_box.insert("end", f"[{tag}] {text}\n"))
+        self.after(0, lambda: self.status_box.see("end"))
+
+    def iniciar_auditoria(self):
+        self.btn_run.configure(state="disabled", text="ANALIZANDO...")
         self.status_box.delete("0.0", "end")
-        self.status_box.insert("end", "> Iniciando sensores...\n")
-        self.update()  # Fuerza a la ventana a actualizarse
+        threading.Thread(target=self.ejecutar_escaneo, daemon=True).start()
 
-        # Paso 2: Ejecutar el sensor de bajo nivel (monitor.exe)
-        if os.path.exists("monitor.exe"):
-            subprocess.run(["monitor.exe"], shell=True)
-        else:
-            self.status_box.insert("end", "[ERROR] No se encuentra monitor.exe\n")
+    def ejecutar_escaneo(self):
+        self.log("Iniciando escaneo de infraestructura...")
+        target = "127.0.0.1"
+        xml_path = os.path.join(self.report_dir, "audit_report.xml")
 
-        # Paso 3: Recopilar Datos (Hardware + Red)
-        datos_hw = "Sin datos de hardware."
-        if os.path.exists("estado_disco.txt"):
-            with open("estado_disco.txt", "r") as f:
-                datos_hw = f.read()
-
-        datos_red = analizar_nmap("reporte_red.xml")
-
-        # Mostrar datos crudos en pantalla
-        self.status_box.insert("end", f"--- HARDWARE ---\n{datos_hw}\n")
-        self.status_box.insert("end", f"--- RED ---\n{datos_red}\n")
-
-        # Actualizar etiqueta de RAM visualmente
         try:
-            if "RAM Usage:" in datos_hw:
-                ram_val = datos_hw.split("RAM Usage:")[1].split("%")[0].strip()
-                self.ram_label.configure(text=f"RAM: {ram_val}%")
+            # Escaneo con Nmap
+            subprocess.run(["nmap", "-F", target, "-oX", xml_path], capture_output=True)
+
+            puertos_encontrados = []
+            if os.path.exists(xml_path):
+                tree = ET.parse(xml_path)
+                for port in tree.findall(".//port"):
+                    state = port.find("state")
+                    if state is not None and state.get("state") == "open":
+                        puertos_encontrados.append(port.get("portid"))
+
+            if puertos_encontrados:
+                self.log(f"Puertos abiertos detectados: {puertos_encontrados}", "ALERTA")
+                analisis = self.consultar_ia(puertos_encontrados)
+                self.log(f"ANÁLISIS IA: {analisis}", "INTEL")
+                self.after(0, lambda: self.mostrar_boton_defensa(puertos_encontrados))
+            else:
+                self.log("No se detectaron servicios expuestos.", "OK")
+
+        except Exception as e:
+            self.log(f"Fallo en motor de escaneo: {str(e)}", "CRITICAL")
+
+        self.after(0, lambda: self.btn_run.configure(state="normal", text="INICIAR AUDITORÍA TÉCNICA"))
+
+    def consultar_ia(self, puertos):
+        try:
+            prompt = f"Analiza estos puertos: {puertos}. Sé técnico, breve y di 'CERRAR' si son peligrosos."
+            response = ollama.generate(model="llama3.2", prompt=prompt)
+            return response["response"].strip()
         except:
-            pass
+            return "IA Offline. Se sugiere Hardening preventivo."
 
-        # Paso 4: CONSULTA A LA INTELIGENCIA ARTIFICIAL
-        self.status_box.insert("end", "\n> Analizando con Llama 3.2 (Pensando...)\n")
-        self.update()
+    def mostrar_boton_defensa(self, puertos):
+        for child in self.defense_frame.winfo_children():
+            child.destroy()
 
-        # Obtenemos el consejo
-        consejo = obtener_consejo_ia(datos_hw, datos_red)
+        btn_fix = ctk.CTkButton(
+            self.defense_frame, text="⚡ APLICAR HARDENING PERSISTENTE",
+            fg_color="#c0392b", hover_color="#e74c3c",
+            command=lambda: threading.Thread(target=self.protocolo_defensa, args=(puertos,), daemon=True).start()
+        )
+        btn_fix.pack()
 
-        # Paso 5: Resultado Final
-        self.status_box.insert("end", f"\n[IA DICE]: {consejo}\n")
-        self.status_box.see("end")  # Auto-scroll al final
+    def protocolo_defensa(self, puertos):
+        self.log("Ejecutando protocolo de aislamiento...")
+        for p in puertos:
+            if aplicar_hardening_permanente(p):
+                self.log(f"Puerto {p} neutralizado.", "SUCCESS")
+            else:
+                self.log(f"Error al bloquear puerto {p}.", "WARNING")
+        self.log("Hardening finalizado. Sistema protegido.", "SUCCESS")
 
-        # Alertas Humanas (Voz y Notificación)
-        hablar_en_hilo(consejo)
-        self.enviar_notificacion("Consejo de Aetheris", consejo)
-
-        logging.info("Ciclo de auditoría completado con éxito.")
-
-
-# =================================================================
-# INICIO DE PRODUCCIÓN
-# =================================================================
 if __name__ == "__main__":
     app = AetherisSentinel()
     app.mainloop()
